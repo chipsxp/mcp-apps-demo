@@ -1,6 +1,6 @@
 /**
- * MCP Server for AI Fitness Coach demo.
- * Registers workout-generator tool with fitness-app UI resource.
+ * MCP Server for Travel Booking Demo.
+ * Registers airline and hotel booking tools with travel app UI resources.
  *
  * Pattern from: v2.x/apps/react/demo/mcp-apps/server.ts
  */
@@ -22,25 +22,21 @@ import path from "node:path";
 import fs from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
-// Import workout logic
+// Import flights logic
 import {
-  generateWorkout,
-  adjustWorkoutDifficulty,
-  completeExercise,
-  skipExercise,
-  getWorkoutProgress,
-  getNextExercise,
-  Workout,
-} from "./src/workout-logic.js";
-import { getExerciseById } from "./src/exercises.js";
+  searchFlights,
+  selectFlight,
+  selectSeats,
+  createBooking,
+} from "./src/flights.js";
 
-// Import recipe logic
+// Import hotels logic
 import {
-  generateRecipe,
-  adjustServings as adjustRecipeServings,
-  getRecipeById,
-  Recipe,
-} from "./src/recipes.js";
+  searchHotels,
+  selectHotel,
+  selectRoom,
+  createHotelBooking,
+} from "./src/hotels.js";
 
 // Import trading logic
 import {
@@ -67,12 +63,6 @@ const RESOURCE_URI_META_KEY = "ui/resourceUri";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Store active workouts by session (in production, use proper storage)
-const activeWorkouts: Map<string, Workout> = new Map();
-
-// Store active recipes by session
-const activeRecipes: Map<string, Recipe> = new Map();
-
 // Store active portfolios by session
 const activePortfolios: Map<string, Portfolio> = new Map();
 
@@ -80,8 +70,12 @@ const activePortfolios: Map<string, Portfolio> = new Map();
 const activeBoards: Map<string, Board> = new Map();
 
 // Load UI HTML file from apps/dist/
+// __dirname points to dist/ after TypeScript compilation, but to mcp-server/ during dev (tsx)
 const loadHtml = async (name: string): Promise<string> => {
-  const htmlPath = path.join(__dirname, "apps", "dist", `${name}.html`);
+  // Check if we're running from dist/ (production) or source (development)
+  const isProduction = __dirname.endsWith("dist");
+  const basePath = isProduction ? path.join(__dirname, "..") : __dirname;
+  const htmlPath = path.join(basePath, "apps", "dist", `${name}.html`);
   try {
     return await fs.readFile(htmlPath, "utf-8");
   } catch {
@@ -91,8 +85,8 @@ const loadHtml = async (name: string): Promise<string> => {
 <head><title>${name}</title></head>
 <body>
   <div style="padding: 20px; font-family: system-ui;">
-    <h2>Fitness App Loading...</h2>
-    <p>The fitness app UI needs to be built. Run:</p>
+    <h2>${name} Loading...</h2>
+    <p>The app UI needs to be built. Run:</p>
     <code>npm run build:app</code>
   </div>
 </body>
@@ -104,15 +98,15 @@ const loadHtml = async (name: string): Promise<string> => {
 const getServer = async () => {
   const server = new McpServer(
     {
-      name: "fitness-coach-mcp-server",
+      name: "travel-booking-mcp-server",
       version: "1.0.0",
     },
     { capabilities: { logging: {} } }
   );
 
   // Load app HTML files
-  const fitnessAppHtml = await loadHtml("fitness-app");
-  const recipeAppHtml = await loadHtml("recipe-app");
+  const flightsAppHtml = await loadHtml("flights-app");
+  const hotelsAppHtml = await loadHtml("hotels-app");
   const tradingAppHtml = await loadHtml("trading-app");
   const kanbanAppHtml = await loadHtml("kanban-app");
 
@@ -135,28 +129,28 @@ const getServer = async () => {
     return resource;
   };
 
-  // Register the fitness app UI resource
-  const fitnessResource = registerResource(
+  // Register the flights app UI resource
+  const flightsResource = registerResource(
     {
-      name: "fitness-app-template",
-      uri: "ui://fitness/workout-app.html",
-      title: "Fitness App",
-      description: "Interactive workout UI with exercise cards, timer, and progress tracking",
+      name: "flights-app-template",
+      uri: "ui://flights/flights-app.html",
+      title: "Airline Booking",
+      description: "Interactive flight search and booking wizard with seat selection",
       mimeType: "text/html+mcp",
     },
-    fitnessAppHtml
+    flightsAppHtml
   );
 
-  // Register the recipe app UI resource
-  const recipeResource = registerResource(
+  // Register the hotels app UI resource
+  const hotelsResource = registerResource(
     {
-      name: "recipe-app-template",
-      uri: "ui://recipe/recipe-app.html",
-      title: "Recipe Chef",
-      description: "Interactive recipe UI with ingredients checklist, steps, and nutrition info",
+      name: "hotels-app-template",
+      uri: "ui://hotels/hotels-app.html",
+      title: "Hotel Booking",
+      description: "Interactive hotel search and booking wizard with room selection",
       mimeType: "text/html+mcp",
     },
-    recipeAppHtml
+    hotelsAppHtml
   );
 
   // Register the trading app UI resource
@@ -183,290 +177,375 @@ const getServer = async () => {
     kanbanAppHtml
   );
 
-  // Register workout-generator tool (main tool with UI)
+  // ============================================
+  // AIRLINE BOOKING TOOLS
+  // ============================================
+
+  // Register search-flights tool (main tool with UI)
   server.registerTool(
-    "workout-generator",
+    "search-flights",
     {
-      title: "Generate Workout",
+      title: "Search Flights",
       description:
-        "Generates a personalized workout based on duration, focus area, equipment, and difficulty. Returns an interactive UI for the workout.",
+        "Searches for available flights between two airports. Returns an interactive booking wizard UI.",
       inputSchema: {
-        duration: z
-          .number()
-          .describe("Workout duration in minutes (15, 30, 45, or 60)"),
-        focus: z
-          .enum(["full_body", "upper_body", "lower_body", "cardio", "core"])
-          .describe("Focus area for the workout"),
-        equipment: z
-          .enum(["none", "dumbbells", "full_gym"])
-          .describe("Available equipment level"),
-        difficulty: z
-          .enum(["beginner", "intermediate", "advanced"])
-          .describe("Difficulty level"),
-      },
-      _meta: {
-        [RESOURCE_URI_META_KEY]: fitnessResource.uri,
-      },
-    },
-    async ({ duration, focus, equipment, difficulty }): Promise<CallToolResult> => {
-      // Generate the workout
-      const workout = generateWorkout({
-        duration: duration as 15 | 30 | 45 | 60,
-        focus,
-        equipment,
-        difficulty,
-      });
-
-      // Store workout for later modifications
-      activeWorkouts.set(workout.id, workout);
-
-      // Return both text summary and structured content for UI
-      const exerciseList = workout.exercises
-        .map((we) => `- ${we.exercise.icon} ${we.exercise.name}: ${we.sets}×${we.reps}`)
-        .join("\n");
-
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Generated ${workout.actualDurationMinutes} minute ${focus} workout (${difficulty}):\n\n${exerciseList}\n\nEstimated calories: ${workout.totalCalories}`,
-          },
-        ],
-        structuredContent: {
-          workout,
-          summary: {
-            exerciseCount: workout.exercises.length,
-            duration: workout.actualDurationMinutes,
-            calories: workout.totalCalories,
-            focus: workout.focusArea,
-            difficulty: workout.difficulty,
-          },
-        },
-      };
-    }
-  );
-
-  // Register log-exercise-complete tool (helper for UI callbacks)
-  server.registerTool(
-    "log-exercise-complete",
-    {
-      title: "Log Exercise Complete",
-      description: "Records that an exercise has been completed in the current workout",
-      inputSchema: {
-        workoutId: z.string().describe("The workout ID"),
-        exerciseId: z.string().describe("The exercise ID that was completed"),
-        setsCompleted: z.number().describe("Number of sets actually completed"),
-        feedback: z.string().optional().describe("Optional feedback about the exercise"),
-      },
-    },
-    async ({ workoutId, exerciseId, setsCompleted, feedback }): Promise<CallToolResult> => {
-      const workout = activeWorkouts.get(workoutId);
-      if (!workout) {
-        return {
-          content: [{ type: "text", text: `Workout ${workoutId} not found.` }],
-          structuredContent: { success: false, error: "Workout not found" },
-        };
-      }
-
-      // Update the workout
-      const updatedWorkout = completeExercise(workout, exerciseId, setsCompleted);
-      activeWorkouts.set(workoutId, updatedWorkout);
-
-      const progress = getWorkoutProgress(updatedWorkout);
-      const nextExercise = getNextExercise(updatedWorkout);
-      const exercise = getExerciseById(exerciseId);
-
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Completed ${exercise?.name || exerciseId} (${setsCompleted} sets). Progress: ${progress}%${
-              feedback ? ` Feedback: ${feedback}` : ""
-            }`,
-          },
-        ],
-        structuredContent: {
-          success: true,
-          progress,
-          nextExercise: nextExercise
-            ? {
-                id: nextExercise.exercise.id,
-                name: nextExercise.exercise.name,
-                sets: nextExercise.sets,
-                reps: nextExercise.reps,
-              }
-            : null,
-          isComplete: progress === 100,
-        },
-      };
-    }
-  );
-
-  // Register adjust-workout tool (helper for making workout harder/easier)
-  server.registerTool(
-    "adjust-workout",
-    {
-      title: "Adjust Workout",
-      description: "Modifies the current workout to make it harder, easier, or skip an exercise",
-      inputSchema: {
-        workoutId: z.string().describe("The workout ID"),
-        modification: z
-          .enum(["harder", "easier", "skip"])
-          .describe("Type of modification"),
-        exerciseId: z
+        origin: z
           .string()
-          .optional()
-          .describe("Exercise ID (required for skip)"),
-      },
-    },
-    async ({ workoutId, modification, exerciseId }): Promise<CallToolResult> => {
-      const workout = activeWorkouts.get(workoutId);
-      if (!workout) {
-        return {
-          content: [{ type: "text", text: `Workout ${workoutId} not found.` }],
-          structuredContent: { success: false, error: "Workout not found" },
-        };
-      }
-
-      let updatedWorkout: Workout;
-      let message: string;
-
-      if (modification === "skip") {
-        if (!exerciseId) {
-          return {
-            content: [{ type: "text", text: "Exercise ID required for skip." }],
-            structuredContent: { success: false, error: "Exercise ID required" },
-          };
-        }
-        updatedWorkout = skipExercise(workout, exerciseId);
-        const exercise = getExerciseById(exerciseId);
-        message = `Skipped ${exercise?.name || exerciseId}. Workout now has ${updatedWorkout.exercises.length} exercises.`;
-      } else {
-        updatedWorkout = adjustWorkoutDifficulty(workout, modification);
-        message = `Made workout ${modification}. New estimated duration: ${updatedWorkout.actualDurationMinutes} minutes.`;
-      }
-
-      activeWorkouts.set(workoutId, updatedWorkout);
-
-      return {
-        content: [{ type: "text", text: message }],
-        structuredContent: {
-          success: true,
-          updatedWorkout,
-          message,
-        },
-      };
-    }
-  );
-
-  // ============================================
-  // RECIPE CHEF TOOLS
-  // ============================================
-
-  // Register generate-recipe tool (main tool with UI)
-  server.registerTool(
-    "generate-recipe",
-    {
-      title: "Generate Recipe",
-      description:
-        "Generates a recipe based on cuisine, dietary preferences, and time constraints. Returns an interactive UI for the recipe.",
-      inputSchema: {
-        cuisine: z
-          .enum(["italian", "mexican", "asian", "american", "mediterranean"])
-          .describe("Type of cuisine"),
-        dietary: z
-          .enum(["none", "vegetarian", "vegan", "gluten-free", "keto"])
-          .describe("Dietary restriction"),
-        servings: z
+          .describe("Origin airport code (e.g., JFK, LAX, LHR)"),
+        destination: z
+          .string()
+          .describe("Destination airport code"),
+        departureDate: z
+          .string()
+          .describe("Departure date in YYYY-MM-DD format"),
+        passengers: z
           .number()
           .min(1)
-          .max(12)
-          .describe("Number of servings (1-12)"),
-        maxTime: z
-          .number()
-          .describe("Maximum total time in minutes (prep + cook)"),
+          .max(9)
+          .describe("Number of passengers (1-9)"),
+        cabinClass: z
+          .enum(["economy", "business", "first"])
+          .optional()
+          .describe("Cabin class (default: economy)"),
       },
       _meta: {
-        [RESOURCE_URI_META_KEY]: recipeResource.uri,
+        [RESOURCE_URI_META_KEY]: flightsResource.uri,
       },
     },
-    async ({ cuisine, dietary, servings, maxTime }): Promise<CallToolResult> => {
-      // Generate the recipe
-      const recipe = generateRecipe({
-        cuisine,
-        dietary,
-        maxTime,
-        servings,
-      });
+    async ({ origin, destination, departureDate, passengers, cabinClass }): Promise<CallToolResult> => {
+      try {
+        const search = searchFlights({
+          origin,
+          destination,
+          departureDate,
+          passengers,
+          cabinClass: cabinClass || "economy",
+        });
 
-      // Store recipe for later modifications
-      activeRecipes.set(recipe.id, recipe);
+        const flightSummary = search.flights
+          .slice(0, 3)
+          .map((f) => `${f.airline.code}${f.flightNumber.slice(2)} ${f.departureTime}-${f.arrivalTime} $${f.price}`)
+          .join(", ");
 
-      // Build ingredient list summary
-      const ingredientList = recipe.ingredients
-        .slice(0, 5)
-        .map((ing) => `${ing.amount} ${ing.unit} ${ing.name}`)
-        .join(", ");
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Found ${search.flights.length} flights from ${origin} to ${destination} on ${departureDate}:\n\n${flightSummary}...`,
+            },
+          ],
+          structuredContent: {
+            search,
+            summary: {
+              flightCount: search.flights.length,
+              origin,
+              destination,
+              date: departureDate,
+              passengers,
+            },
+          },
+        };
+      } catch (error) {
+        return {
+          content: [{ type: "text", text: `Error: ${(error as Error).message}` }],
+          structuredContent: { success: false, error: (error as Error).message },
+        };
+      }
+    }
+  );
 
-      const totalTime = recipe.prepTime + recipe.cookTime;
+  // Register select-flight tool (helper for UI)
+  server.registerTool(
+    "select-flight",
+    {
+      title: "Select Flight",
+      description: "Selects a flight from search results and returns the seat map",
+      inputSchema: {
+        searchId: z.string().describe("The search session ID"),
+        flightId: z.string().describe("The flight ID to select"),
+      },
+    },
+    async ({ searchId, flightId }): Promise<CallToolResult> => {
+      const result = selectFlight(searchId, flightId);
+
+      if (!result) {
+        return {
+          content: [{ type: "text", text: "Flight or search not found." }],
+          structuredContent: { success: false, error: "Flight or search not found" },
+        };
+      }
 
       return {
         content: [
           {
             type: "text",
-            text: `Found recipe: ${recipe.icon} ${recipe.name}\n\n${recipe.description}\n\nTime: ${totalTime} min | Servings: ${recipe.servings} | Difficulty: ${recipe.difficulty}\n\nKey ingredients: ${ingredientList}...`,
+            text: `Selected ${result.flight.airline.name} ${result.flight.flightNumber} (${result.flight.departureTime}-${result.flight.arrivalTime}). Please choose your seats.`,
           },
         ],
         structuredContent: {
-          recipe,
-          summary: {
-            name: recipe.name,
-            totalTime,
-            servings: recipe.servings,
-            difficulty: recipe.difficulty,
-            cuisine: recipe.cuisine,
-          },
+          success: true,
+          flight: result.flight,
+          seatMap: result.seatMap,
         },
       };
     }
   );
 
-  // Register adjust-servings tool (helper for UI callbacks)
+  // Register select-seats tool (helper for UI)
   server.registerTool(
-    "adjust-servings",
+    "select-seats",
     {
-      title: "Adjust Servings",
-      description: "Adjusts recipe ingredient amounts for a different number of servings",
+      title: "Select Seats",
+      description: "Selects seats for the chosen flight",
       inputSchema: {
-        recipeId: z.string().describe("The recipe ID"),
-        newServings: z.number().min(1).max(12).describe("New number of servings"),
+        searchId: z.string().describe("The search session ID"),
+        flightId: z.string().describe("The flight ID"),
+        seats: z.array(z.string()).describe("Array of seat IDs (e.g., ['12A', '12B'])"),
       },
     },
-    async ({ recipeId, newServings }): Promise<CallToolResult> => {
-      const recipe = activeRecipes.get(recipeId) || getRecipeById(recipeId);
-      if (!recipe) {
+    async ({ searchId, flightId, seats }): Promise<CallToolResult> => {
+      const result = selectSeats(searchId, flightId, seats);
+
+      return {
+        content: [{ type: "text", text: result.message }],
+        structuredContent: {
+          success: result.success,
+          selectedSeats: result.selectedSeats,
+          totalSeatFee: result.totalSeatFee,
+          error: result.success ? undefined : result.message,
+        },
+      };
+    }
+  );
+
+  // Register book-flight tool (helper for UI)
+  server.registerTool(
+    "book-flight",
+    {
+      title: "Book Flight",
+      description: "Completes the flight booking with passenger details",
+      inputSchema: {
+        searchId: z.string().describe("The search session ID"),
+        passengers: z.array(
+          z.object({
+            name: z.string().describe("Passenger full name"),
+            email: z.string().describe("Passenger email"),
+            phone: z.string().describe("Passenger phone number"),
+          })
+        ).describe("Passenger information"),
+      },
+    },
+    async ({ searchId, passengers }): Promise<CallToolResult> => {
+      const result = createBooking(searchId, passengers);
+
+      if (!result.success || !result.booking) {
         return {
-          content: [{ type: "text", text: `Recipe ${recipeId} not found.` }],
-          structuredContent: { success: false, error: "Recipe not found" },
+          content: [{ type: "text", text: result.message }],
+          structuredContent: { success: false, error: result.message },
         };
       }
-
-      // Adjust the recipe
-      const adjustedRecipe = adjustRecipeServings(recipe, newServings);
-
-      // Update stored recipe
-      activeRecipes.set(recipeId, adjustedRecipe);
 
       return {
         content: [
           {
             type: "text",
-            text: `Adjusted ${recipe.name} to ${newServings} servings.`,
+            text: `Booking confirmed! Confirmation: ${result.booking.confirmationNumber}\n\nFlight: ${result.booking.flight.airline.name} ${result.booking.flight.flightNumber}\nRoute: ${result.booking.flight.origin.code} → ${result.booking.flight.destination.code}\nSeats: ${result.booking.seats.join(", ")}\nTotal: $${result.booking.totalPrice.toFixed(2)}`,
           },
         ],
         structuredContent: {
           success: true,
-          recipe: adjustedRecipe,
+          booking: result.booking,
+        },
+      };
+    }
+  );
+
+  // ============================================
+  // HOTEL BOOKING TOOLS
+  // ============================================
+
+  // Register search-hotels tool (main tool with UI)
+  server.registerTool(
+    "search-hotels",
+    {
+      title: "Search Hotels",
+      description:
+        "Searches for available hotels in a city. Returns an interactive booking wizard UI.",
+      inputSchema: {
+        city: z
+          .string()
+          .describe("City name (e.g., Paris, New York, Tokyo)"),
+        checkIn: z
+          .string()
+          .describe("Check-in date in YYYY-MM-DD format"),
+        checkOut: z
+          .string()
+          .describe("Check-out date in YYYY-MM-DD format"),
+        guests: z
+          .number()
+          .min(1)
+          .max(6)
+          .describe("Number of guests (1-6)"),
+        rooms: z
+          .number()
+          .min(1)
+          .max(4)
+          .optional()
+          .describe("Number of rooms needed (default: 1)"),
+      },
+      _meta: {
+        [RESOURCE_URI_META_KEY]: hotelsResource.uri,
+      },
+    },
+    async ({ city, checkIn, checkOut, guests, rooms }): Promise<CallToolResult> => {
+      try {
+        const search = searchHotels({
+          city,
+          checkIn,
+          checkOut,
+          guests,
+          rooms: rooms || 1,
+        });
+
+        const hotelSummary = search.hotels
+          .slice(0, 3)
+          .map((h) => `${"★".repeat(h.stars)} ${h.name} (${h.rating}/10) from $${h.pricePerNight}/night`)
+          .join("\n");
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Found ${search.hotels.length} hotels in ${city} for ${search.searchParams.nights} night(s):\n\n${hotelSummary}`,
+            },
+          ],
+          structuredContent: {
+            search,
+            summary: {
+              hotelCount: search.hotels.length,
+              city,
+              checkIn,
+              checkOut,
+              nights: search.searchParams.nights,
+              guests,
+            },
+          },
+        };
+      } catch (error) {
+        return {
+          content: [{ type: "text", text: `Error: ${(error as Error).message}` }],
+          structuredContent: { success: false, error: (error as Error).message },
+        };
+      }
+    }
+  );
+
+  // Register select-hotel tool (helper for UI)
+  server.registerTool(
+    "select-hotel",
+    {
+      title: "Select Hotel",
+      description: "Selects a hotel from search results and returns available rooms",
+      inputSchema: {
+        searchId: z.string().describe("The search session ID"),
+        hotelId: z.string().describe("The hotel ID to select"),
+      },
+    },
+    async ({ searchId, hotelId }): Promise<CallToolResult> => {
+      const result = selectHotel(searchId, hotelId);
+
+      if (!result) {
+        return {
+          content: [{ type: "text", text: "Hotel or search not found." }],
+          structuredContent: { success: false, error: "Hotel or search not found" },
+        };
+      }
+
+      const roomSummary = result.rooms
+        .map((r) => `${r.name}: $${r.pricePerNight}/night`)
+        .join(", ");
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Selected ${result.hotel.name} (${"★".repeat(result.hotel.stars)}). Available rooms: ${roomSummary}`,
+          },
+        ],
+        structuredContent: {
+          success: true,
+          hotel: result.hotel,
+          rooms: result.rooms,
+        },
+      };
+    }
+  );
+
+  // Register select-room tool (helper for UI)
+  server.registerTool(
+    "select-room",
+    {
+      title: "Select Room",
+      description: "Selects a room type and quantity for the booking",
+      inputSchema: {
+        searchId: z.string().describe("The search session ID"),
+        hotelId: z.string().describe("The hotel ID"),
+        roomId: z.string().describe("The room type ID"),
+        quantity: z.number().min(1).max(4).describe("Number of rooms"),
+      },
+    },
+    async ({ searchId, hotelId, roomId, quantity }): Promise<CallToolResult> => {
+      const result = selectRoom(searchId, hotelId, roomId, quantity);
+
+      return {
+        content: [{ type: "text", text: result.message }],
+        structuredContent: {
+          success: result.success,
+          room: result.room,
+          totalPrice: result.totalPrice,
+          error: result.success ? undefined : result.message,
+        },
+      };
+    }
+  );
+
+  // Register book-hotel tool (helper for UI)
+  server.registerTool(
+    "book-hotel",
+    {
+      title: "Book Hotel",
+      description: "Completes the hotel booking with guest details",
+      inputSchema: {
+        searchId: z.string().describe("The search session ID"),
+        guests: z.array(
+          z.object({
+            name: z.string().describe("Guest full name"),
+            email: z.string().describe("Guest email"),
+          })
+        ).describe("Guest information"),
+        specialRequests: z.string().optional().describe("Special requests for the hotel"),
+      },
+    },
+    async ({ searchId, guests, specialRequests }): Promise<CallToolResult> => {
+      const result = createHotelBooking(searchId, guests, specialRequests);
+
+      if (!result.success || !result.booking) {
+        return {
+          content: [{ type: "text", text: result.message }],
+          structuredContent: { success: false, error: result.message },
+        };
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Booking confirmed! Confirmation: ${result.booking.confirmationNumber}\n\nHotel: ${result.booking.hotel.name}\nRoom: ${result.booking.roomQuantity}x ${result.booking.room.name}\nDates: ${result.booking.checkIn} to ${result.booking.checkOut} (${result.booking.nights} nights)\nTotal: $${result.booking.totalPrice.toFixed(2)}`,
+          },
+        ],
+        structuredContent: {
+          success: true,
+          booking: result.booking,
         },
       };
     }
@@ -951,14 +1030,14 @@ app.delete("/mcp", async (req: Request, res: Response) => {
 app.get("/health", (_req: Request, res: Response) => {
   res.json({
     status: "ok",
-    server: "fitness-coach-mcp",
+    server: "travel-booking-mcp",
     sessions: Object.keys(transports).length,
   });
 });
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`[Fitness Coach MCP Server] Running at http://localhost:${PORT}/mcp`);
+  console.log(`[Travel Booking MCP Server] Running at http://localhost:${PORT}/mcp`);
   console.log(`[Health Check] http://localhost:${PORT}/health`);
 });
 

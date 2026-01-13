@@ -1,18 +1,19 @@
 {
   "name": "mcp-server",
   "version": "1.0.0",
-  "description": "MCP Server for AI Fitness Coach demo",
+  "description": "MCP Server for Travel Booking and Productivity Apps demo",
   "type": "module",
   "main": "dist/server.js",
   "scripts": {
     "build": "tsc && npm run build:app",
-    "build:app": "cd apps && rm -rf dist && BUILD_APP=fitness-app vite build && BUILD_APP=recipe-app vite build && BUILD_APP=trading-app vite build && BUILD_APP=kanban-app vite build",
+    "build:app": "cd apps && rm -rf dist && BUILD_APP=flights-app vite build && BUILD_APP=hotels-app vite build && BUILD_APP=trading-app vite build && BUILD_APP=kanban-app vite build",
     "start": "node dist/server.js",
     "dev": "tsx watch server.ts"
   },
   "keywords": [
     "mcp",
-    "fitness",
+    "travel",
+    "booking",
     "copilotkit"
   ],
   "author": "",

@@ -1,6 +1,6 @@
 /**
  * CopilotKit API route with MCP Apps middleware.
- * Connects to the fitness coach MCP server and enables UI-enabled tools.
+ * Connects to the travel booking MCP server and enables UI-enabled tools.
  *
  * Reference: v2.x/apps/react/demo/src/app/api/copilotkit-mcp/[[...slug]]/route.ts
  */
@@ -31,30 +31,34 @@ const agent = new BasicAgent({
 
 ## Available Apps
 
-### 1. Fitness Coach (workout-generator)
-Create personalized workouts with interactive exercise cards, timers, and progress tracking.
-- Parameters: duration (15/30/45/60 min), focus (full_body/upper_body/lower_body/cardio/core), equipment (none/dumbbells/full_gym), difficulty (beginner/intermediate/advanced)
-- Example: "Create a 30 minute upper body workout for beginners with no equipment"
+### 1. Airline Booking (search-flights)
+Search for flights, select seats, and complete bookings with a full wizard experience.
+- Parameters: origin (airport code like JFK, LAX, LHR), destination (airport code), departureDate (YYYY-MM-DD), passengers (1-9), cabinClass (economy/business/first)
+- Example: "Book a flight from New York to Los Angeles on January 20th for 2 passengers"
+- Helper tools: select-flight, select-seats, book-flight
 
-### 2. Recipe Chef (generate-recipe)
-Find recipes with ingredients checklist, step-by-step instructions, and nutrition info.
-- Parameters: cuisine (italian/mexican/asian/american/mediterranean), dietary (none/vegetarian/vegan/gluten-free/keto), servings (1-12), maxTime (prep+cook in minutes)
-- Example: "Find a quick Italian vegetarian recipe for 4 people"
+### 2. Hotel Booking (search-hotels)
+Browse hotels, compare rooms, and book accommodations in cities worldwide.
+- Parameters: city (Paris, Tokyo, New York, etc.), checkIn (YYYY-MM-DD), checkOut (YYYY-MM-DD), guests (1-6), rooms (1-4)
+- Example: "Find a hotel in Paris from January 15 to 18 for 2 guests"
+- Helper tools: select-hotel, select-room, book-hotel
 
 ### 3. Investment Simulator (create-portfolio)
 Create mock investment portfolios with holdings, charts, and trading.
 - Parameters: initialBalance (1000-1000000), riskTolerance (conservative/moderate/aggressive), focus (tech/healthcare/diversified/growth/dividend)
 - Example: "Create a $10,000 aggressive tech-focused portfolio"
+- Helper tools: execute-trade, refresh-prices
 
 ### 4. Kanban Board (create-board)
 Create task boards with drag-drop cards and columns.
 - Parameters: projectName (string), template (blank/software/marketing/personal)
 - Example: "Create a kanban board for my software project"
+- Helper tools: add-card, update-card, delete-card, move-card
 
 ## Guidelines
 - When a user's request matches an app, use the appropriate tool to render the interactive UI
 - Ask clarifying questions if key parameters are missing
-- Each app has helper tools for interactions (adjust workout, execute trade, move card, etc.)
+- Each app has helper tools for additional interactions within the UI
 - Be helpful and guide users through the interactive features`,
   temperature: 0.7,
 }).use(new MCPAppsMiddleware({
