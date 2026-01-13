@@ -1,6 +1,8 @@
 "use client";
 
-import { CopilotKitProvider, CopilotSidebar } from "@copilotkitnext/react";
+import { CopilotKitProvider, CopilotSidebar, useAgent, useCopilotKit } from "@copilotkitnext/react";
+import { randomUUID, DEFAULT_AGENT_ID } from "@copilotkitnext/shared";
+import { useCallback } from "react";
 
 export const dynamic = "force-dynamic";
 
@@ -107,6 +109,23 @@ export default function MCPAppsDemo() {
 }
 
 function AppLayout() {
+  const { agent } = useAgent({ agentId: DEFAULT_AGENT_ID });
+  const { copilotkit } = useCopilotKit();
+
+  // Send a message to the chat and run the agent
+  const sendMessage = useCallback(async (message: string) => {
+    agent.addMessage({
+      id: randomUUID(),
+      role: "user",
+      content: message,
+    });
+    try {
+      await copilotkit.runAgent({ agent });
+    } catch (error) {
+      console.error("Failed to run agent:", error);
+    }
+  }, [agent, copilotkit]);
+
   return (
     <div className="relative min-h-screen overflow-hidden">
       {/* Animated Abstract Background */}
@@ -146,9 +165,13 @@ function AppLayout() {
               </p>
               <div className="flex flex-wrap gap-2">
                 {app.prompts.map((prompt, i) => (
-                  <span key={i} className="prompt-pill text-xs">
+                  <button
+                    key={i}
+                    className="prompt-pill text-xs cursor-pointer hover:scale-105 transition-transform"
+                    onClick={() => sendMessage(prompt)}
+                  >
                     &ldquo;{prompt}&rdquo;
-                  </span>
+                  </button>
                 ))}
               </div>
             </div>
