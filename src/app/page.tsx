@@ -1,6 +1,6 @@
 "use client";
 
-import { CopilotKitProvider, CopilotSidebar, CopilotPopup, useAgent, useCopilotKit } from "@copilotkitnext/react";
+import { CopilotKitProvider, CopilotSidebar, CopilotPopup, useAgent, useCopilotKit, useCopilotChatConfiguration } from "@copilotkitnext/react";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { randomUUID, DEFAULT_AGENT_ID } from "@copilotkitnext/shared";
 import { useCallback } from "react";
@@ -113,9 +113,11 @@ function AppLayout() {
   const { agent } = useAgent({ agentId: DEFAULT_AGENT_ID });
   const { copilotkit } = useCopilotKit();
   const isDesktop = useMediaQuery("(min-width: 768px)");
+  const config = useCopilotChatConfiguration();
 
   // Send a message to the chat and run the agent
   const sendMessage = useCallback(async (message: string) => {
+    config?.setModalOpen(true);
     agent.addMessage({
       id: randomUUID(),
       role: "user",
@@ -126,7 +128,7 @@ function AppLayout() {
     } catch (error) {
       console.error("Failed to run agent:", error);
     }
-  }, [agent, copilotkit]);
+  }, [agent, copilotkit, config]);
 
   return (
     <div className="relative min-h-screen overflow-hidden">
@@ -233,6 +235,7 @@ function AppLayout() {
         />
       ) : (
         <CopilotPopup
+          defaultOpen={false}
           labels={{
             modalHeaderTitle: "MCP Apps Assistant",
             chatInputPlaceholder: "What would you like to try today?",
