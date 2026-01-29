@@ -1,6 +1,7 @@
 "use client";
 
-import { CopilotKitProvider, CopilotSidebar, useAgent, useCopilotKit } from "@copilotkitnext/react";
+import { CopilotKitProvider, CopilotSidebar, CopilotPopup, useAgent, useCopilotKit, useCopilotChatConfiguration } from "@copilotkitnext/react";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { randomUUID, DEFAULT_AGENT_ID } from "@copilotkitnext/shared";
 import { useCallback } from "react";
 
@@ -111,9 +112,12 @@ export default function MCPAppsDemo() {
 function AppLayout() {
   const { agent } = useAgent({ agentId: DEFAULT_AGENT_ID });
   const { copilotkit } = useCopilotKit();
+  const isDesktop = useMediaQuery("(min-width: 768px)");
+  const config = useCopilotChatConfiguration();
 
   // Send a message to the chat and run the agent
   const sendMessage = useCallback(async (message: string) => {
+    config?.setModalOpen(true);
     agent.addMessage({
       id: randomUUID(),
       role: "user",
@@ -124,7 +128,7 @@ function AppLayout() {
     } catch (error) {
       console.error("Failed to run agent:", error);
     }
-  }, [agent, copilotkit]);
+  }, [agent, copilotkit, config]);
 
   return (
     <div className="relative min-h-screen overflow-hidden">
@@ -134,7 +138,7 @@ function AppLayout() {
       </div>
 
       {/* Main Content */}
-      <main className="relative z-10 mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-12">
+      <main className="relative z-10 mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-6 md:px-6 md:py-12">
         {/* Hero Section */}
         <section className="text-center space-y-6">
           <div className="inline-flex items-center gap-2 glass-subtle px-4 py-2 rounded-full text-sm text-[var(--color-text-secondary)]">
@@ -233,11 +237,21 @@ function AppLayout() {
         </section>
       </main>
 
-      {/* CopilotKit Sidebar */}
-      <CopilotSidebar
-        defaultOpen={true}
-        width="50%"
-      />
+      {/* CopilotKit Chat UI - Sidebar on desktop, Popup on mobile */}
+      {isDesktop ? (
+        <CopilotSidebar
+          defaultOpen={true}
+          width="50%"
+        />
+      ) : (
+        <CopilotPopup
+          defaultOpen={false}
+          labels={{
+            modalHeaderTitle: "MCP Apps Assistant",
+            chatInputPlaceholder: "What would you like to try today?",
+          }}
+        />
+      )}
     </div>
   );
 }
