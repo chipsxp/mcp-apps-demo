@@ -1,11 +1,13 @@
 /**
  * CopilotKit API route with MCP Apps middleware.
  * Connects to the travel booking MCP server and enables UI-enabled tools.
- *
- * Reference: v2.x/apps/react/demo/src/app/api/copilotkit-mcp/[[...slug]]/route.ts
  */
 
-import { CopilotRuntime, createCopilotEndpoint, InMemoryAgentRunner } from "@copilotkitnext/runtime";
+import {
+  CopilotRuntime,
+  createCopilotEndpoint,
+  InMemoryAgentRunner,
+} from "@copilotkitnext/runtime";
 import { handle } from "hono/vercel";
 import { BuiltInAgent } from "@copilotkitnext/agent";
 import { MCPAppsMiddleware } from "@ag-ui/mcp-apps-middleware";
@@ -13,15 +15,15 @@ import { MCPAppsMiddleware } from "@ag-ui/mcp-apps-middleware";
 // Determine which LLM model to use based on available API keys
 const determineModel = () => {
   if (process.env.OPENAI_API_KEY?.trim()) {
-    return "openai/gpt-5.2";
+    return "openai/gpt-4o";
   }
   if (process.env.ANTHROPIC_API_KEY?.trim()) {
-    return "anthropic/claude-sonnet-4.5";
+    return "anthropic/claude-sonnet-4-20250514";
   }
   if (process.env.GOOGLE_API_KEY?.trim()) {
-    return "google/gemini-2.5-pro";
+    return "google/gemini-2.0-flash";
   }
-  return "openai/gpt-5.2";
+  return "openai/gpt-4o";
 };
 
 // Create the agent with multi-app assistant persona and MCP Apps middleware
@@ -60,11 +62,16 @@ Create task boards with drag-drop cards and columns.
 - Ask clarifying questions if key parameters are missing
 - Each app has helper tools for additional interactions within the UI
 - Be helpful and guide users through the interactive features`,
-}).use(new MCPAppsMiddleware({
-  mcpServers: [
-    { type: "http", url: process.env.MCP_SERVER_URL || "http://localhost:3001/mcp" }
-  ],
-}));
+}).use(
+  new MCPAppsMiddleware({
+    mcpServers: [
+      {
+        type: "http",
+        url: process.env.MCP_SERVER_URL || "http://localhost:3001/mcp",
+      },
+    ],
+  }),
+);
 
 // Create CopilotKit runtime
 const runtime = new CopilotRuntime({

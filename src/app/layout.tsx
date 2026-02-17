@@ -14,8 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI Fitness Coach - MCP Apps Demo",
-  description: "Interactive workout demo built with CopilotKit and MCP Apps",
+  title: "Agents MCP Single Page Apps Group - MCP Apps Demo",
+  description:
+    "Four Interactive MCP SPA selections demo built with CopilotKit and MCP Apps",
 };
 
 export default function RootLayout({
