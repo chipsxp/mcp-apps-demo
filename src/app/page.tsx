@@ -190,11 +190,11 @@ function AppLayout() {
     <div className="flex flex-col md:flex-row h-screen w-full overflow-hidden abstract-bg">
       {/* Main Content - top on mobile, left on desktop (60% width) */}
       <div className="order-1 md:order-1 w-full md:w-3/5 h-[55vh] md:h-full overflow-y-auto relative">
-        <main className="relative z-10 flex w-full flex-col gap-4 px-6 py-8">
-          <section className="text-center space-y-4">
-            <div className="inline-flex items-center gap-2 glass-subtle px-4 py-2 rounded-full text-sm text-[var(--color-text-secondary)]">
+        <main className="relative z-10 flex w-full flex-col gap-4 px-6 py-8 glass">
+          <section className="text-center space-y-4 glass-subtle p-6">
+            <div className="inline-flex items-center gap-2 bg-[var(--color-glass-subtle)] backdrop-blur-md border border-[var(--color-border-glass)] px-4 py-2 rounded-full text-sm text-[var(--color-text-secondary)] border-gradient">
               {Icons.sparkles}
-              <span>MCP Apps Demo</span>
+              <span className="text-gradient font-semibold">MCP Apps Demo</span>
             </div>
             <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-[var(--color-text-primary)]">
               Interactive AI Apps
@@ -202,10 +202,28 @@ function AppLayout() {
             <p className="text-base text-[var(--color-text-secondary)]">
               Rich UI components powered by MCP Apps Extension (SEP-1865)
             </p>
+            <div className="flex justify-center gap-4 pt-2">
+              <a
+                href="https://docs.copilotkit.ai"
+                target="_blank"
+                rel="noreferrer"
+                className="docs-btn docs-btn-primary"
+              >
+                Read Documentation
+              </a>
+              <a
+                href="https://github.com/CopilotKit/CopilotKit"
+                target="_blank"
+                rel="noreferrer"
+                className="docs-btn docs-btn-secondary"
+              >
+                View Source
+              </a>
+            </div>
           </section>
-          <section className="grid gap-4 grid-cols-1 md:grid-cols-2">
+          <section className="grid gap-4 grid-cols-1 md:grid-cols-2 glass-subtle p-6">
             {apps.map((app) => (
-              <div key={app.id} className="app-card">
+              <div key={app.id} className="app-card glass-card">
                 <div className={`app-card-icon ${app.iconClass}`}>
                   {app.icon}
                 </div>
