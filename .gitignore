@@ -40,6 +40,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# local config files
 node_modules/
 dist/
 CLAUDE.md
+MCP-UI-Research

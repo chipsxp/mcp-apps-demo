@@ -2,7 +2,7 @@
 
 import {
   CopilotKitProvider,
-  CopilotSidebar,
+  CopilotChat,
   useAgent,
   useCopilotKit,
   useCopilotChatConfiguration,
@@ -187,26 +187,23 @@ function AppLayout() {
   );
 
   return (
-    <div className="flex h-screen w-full overflow-hidden">
-      {/* Main Content - 2/3 width */}
-      <div className="w-2/3 h-full overflow-auto relative">
-        <div className="abstract-bg">
-          <div className="blob-3" />
-        </div>
-        <main className="relative z-10 mx-auto flex w-full max-w-4xl flex-col gap-8 px-6 py-12">
-          <section className="text-center space-y-6">
+    <div className="flex flex-col md:flex-row h-screen w-full overflow-hidden abstract-bg">
+      {/* Main Content - top on mobile, left on desktop (60% width) */}
+      <div className="order-1 md:order-1 w-full md:w-3/5 h-[55vh] md:h-full overflow-y-auto relative">
+        <main className="relative z-10 flex w-full flex-col gap-4 px-6 py-8">
+          <section className="text-center space-y-4">
             <div className="inline-flex items-center gap-2 glass-subtle px-4 py-2 rounded-full text-sm text-[var(--color-text-secondary)]">
               {Icons.sparkles}
               <span>MCP Apps Demo</span>
             </div>
-            <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-[var(--color-text-primary)]">
+            <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-[var(--color-text-primary)]">
               Interactive AI Apps
             </h1>
-            <p className="max-w-2xl mx-auto text-lg text-[var(--color-text-secondary)]">
+            <p className="text-base text-[var(--color-text-secondary)]">
               Rich UI components powered by MCP Apps Extension (SEP-1865)
             </p>
           </section>
-          <section className="grid gap-6 md:grid-cols-2">
+          <section className="grid gap-4 grid-cols-1 md:grid-cols-2">
             {apps.map((app) => (
               <div key={app.id} className="app-card">
                 <div className={`app-card-icon ${app.iconClass}`}>
@@ -234,8 +231,8 @@ function AppLayout() {
           </section>
         </main>
       </div>
-      {/* CopilotKit Chat - Always visible on desktop */}
-      <div className="w-1/3 h-full">
+      {/* Chat UI - bottom on mobile, right on desktop (40% width) */}
+      <div className="order-2 md:order-2 w-full md:w-2/5 h-[45vh] md:h-full flex-shrink-0 border-t md:border-t-0 md:border-l border-[var(--color-border-glass)] bg-[var(--color-surface-light)]/50">
         <CopilotChatContainer />
       </div>
     </div>
@@ -244,17 +241,8 @@ function AppLayout() {
 
 function CopilotChatContainer() {
   return (
-    <div
-      style={{
-        position: "fixed",
-        right: 0,
-        top: 0,
-        bottom: 0,
-        width: "33.333333%",
-        zIndex: 50,
-      }}
-    >
-      <CopilotSidebar defaultOpen={true} />
+    <div className="copilot-chat-container h-full w-full">
+      <CopilotChat />
     </div>
   );
 }

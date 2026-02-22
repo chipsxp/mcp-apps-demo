@@ -256,6 +256,9 @@ mcp-apps-library/                 # Project (to be created)
 
 ### Documentation
 
+- [Model Context Protocol UI SDK](https://github.com/MCP-UI-Org/mcp-ui)
+- [MCP Apps SDK documentation](https://mcpui.dev/guide/introduction)
+- [@modelcontextprotocol/ext-apps - v1.0.1](https://modelcontextprotocol.github.io/ext-apps/api/modules.html)
 - [MCP Specification](https://modelcontextprotocol.io)
 - [CopilotKit Docs](https://copilotkit.ai)
 - [AG-UI Protocol](https://github.com/ag-ui-protocol/ag-ui)
